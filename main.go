@@ -6,9 +6,15 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/machinebox/graphql"
+	"github.com/peterh/liner"
 	"github.com/urfave/cli/v2"
+)
+
+var (
+	history_fn = filepath.Join(os.TempDir(), ".etu.history")
 )
 
 type Config struct {
@@ -86,6 +92,53 @@ func (cfg *Config) Client() (*graphql.Client, error) {
 }
 
 func (cfg *Config) Add(c *cli.Context) error {
+	line := liner.NewLiner()
+	defer line.Close()
+
+	if f, err := os.Open(history_fn); err == nil {
+		line.ReadHistory(f)
+		f.Close()
+	}
+
+	project, err := line.Prompt("What Project? ")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Categories:")
+	fmt.Println(" 1. Educating ")
+	fmt.Println(" 2. Building")
+	fmt.Println(" 3. Living")
+
+	typeStr, err := line.Prompt("Category [1-3]? ")
+	if err != nil {
+		return err
+	}
+
+	focusStr, err := line.Prompt("Focus [1-9]? ")
+	if err != nil {
+		return err
+	}
+
+	introversionStr, err := line.Prompt("Introversion [1-9]? ")
+	if err != nil {
+		return err
+	}
+	code := fmt.Sprintf("%s%s%s", typeStr, focusStr, introversionStr)
+
+	line.SetMultiLineMode(true)
+	comment, err := line.Prompt("Comment? ")
+	if err != nil {
+		return err
+	}
+
+	if f, err := os.Create(history_fn); err != nil {
+		log.Print("Error writing history file: ", err)
+	} else {
+		line.WriteHistory(f)
+		f.Close()
+	}
+
 	client, err := cfg.Client()
 	if err != nil {
 		return err
@@ -99,13 +152,12 @@ func (cfg *Config) Add(c *cli.Context) error {
       id
       datetime
     }
-  }
-`
+  }`
 
 	req := graphql.NewRequest(gql)
-	req.Var("content", "test")
-	req.Var("code", "111")
-	req.Var("project", "test")
+	req.Var("content", comment)
+	req.Var("code", code)
+	req.Var("project", project)
 
 	return client.Run(c.Context, req, nil)
 }
