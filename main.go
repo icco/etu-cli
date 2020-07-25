@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -10,11 +9,34 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name:  "greet",
-		Usage: "fight the loneliness!",
-		Action: func(c *cli.Context) error {
-			fmt.Println("Hello friend!")
-			return nil
+		Name:  "etu",
+		Usage: "log a project to etu.natwelch.com",
+		Commands: []*cli.Command{
+			{
+				Name:    "print",
+				Aliases: []string{"p"},
+				Usage:   "print recent entries",
+				Action:  print,
+			},
+			{
+				Name:    "add",
+				Aliases: []string{"a"},
+				Usage:   "add a log",
+				Action:  add,
+			},
+		},
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "api_key",
+				Usage:   "authorize your user",
+				EnvVars: []string{"GQL_TOKEN"},
+			},
+			&cli.StringFlag{
+				Name:    "env",
+				Usage:   "set which graphql server to talk to",
+				Value:   "production",
+				EnvVars: []string{"NAT_ENV"},
+			},
 		},
 	}
 
@@ -22,4 +44,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func add(c *cli.Context) error {
+	return nil
+}
+
+func print(c *cli.Context) error {
+	return nil
 }
