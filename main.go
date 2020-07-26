@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/icco/etu-cli/lib/location"
 	"github.com/machinebox/graphql"
 	"github.com/olekukonko/tablewriter"
 	"github.com/peterh/liner"
@@ -26,6 +27,12 @@ type Config struct {
 
 // Etu is the personifcation of time according to the Lakota.
 func main() {
+	loc, err := location.CurrentLocation()
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("location: %+v", loc)
+
 	cfg := &Config{}
 	app := &cli.App{
 		Name:  "etu",
@@ -61,8 +68,7 @@ func main() {
 		},
 	}
 
-	err := app.RunContext(context.Background(), os.Args)
-	if err != nil {
+	if err := app.RunContext(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
 	}
 }
