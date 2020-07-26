@@ -7,8 +7,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/machinebox/graphql"
+	"github.com/olekukonko/tablewriter"
 	"github.com/peterh/liner"
 	"github.com/urfave/cli/v2"
 )
@@ -164,5 +166,55 @@ func (cfg *Config) Add(c *cli.Context) error {
 }
 
 func (cfg *Config) Print(c *cli.Context) error {
+	client, err := cfg.Client()
+	if err != nil {
+		return err
+	}
+
+	gql := `
+  query logs {
+    logs {
+      datetime
+			description
+			code
+			project
+    }
+  }`
+	req := graphql.NewRequest(gql)
+
+	var response struct {
+		Logs []struct {
+			Datetime    time.Time
+			Code        string
+			Description string
+			Project     string
+		}
+	}
+	err = client.Run(c.Context, req, &response)
+	if err != nil {
+		return err
+	}
+
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAutoFormatHeaders(true)
+	table.SetAutoWrapText(false)
+	table.SetBorder(false)
+	table.SetCenterSeparator("")
+	table.SetColumnSeparator("")
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetHeaderLine(true)
+	table.SetNoWhiteSpace(true)
+	table.SetRowLine(true)
+	table.SetRowSeparator(" ")
+	table.SetTablePadding("\t")
+
+	table.SetHeader([]string{"Code", "Project", "When", "Description"})
+	for _, r := range response.Logs {
+		table.Append([]string{r.Code, r.Project, r.Datetime.Format("2006-01-02 15:04"), r.Description})
+	}
+
+	table.Render()
+
 	return nil
 }
