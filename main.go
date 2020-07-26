@@ -94,6 +94,7 @@ func (cfg *Config) Client() (*graphql.Client, error) {
 func (cfg *Config) Add(c *cli.Context) error {
 	line := liner.NewLiner()
 	defer line.Close()
+	line.SetCtrlCAborts(true)
 
 	if f, err := os.Open(history_fn); err == nil {
 		line.ReadHistory(f)
