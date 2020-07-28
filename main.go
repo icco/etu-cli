@@ -153,7 +153,7 @@ func (cfg *Config) Add(c *cli.Context) error {
 	}
 
 	gql := `
-mutation SaveLog($content: String!, $project: String!, $code: String!, $lat: Float, $long: Float) {
+mutation SaveLog($content: String!, $project: String!, $code: String!, $lat: Float!, $long: Float!) {
 	insertLog(input: {
 		code: $code,
 		description: $content,
