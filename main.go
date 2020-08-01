@@ -73,12 +73,16 @@ type AddHeaderTransport struct {
 }
 
 func (adt *AddHeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if adt.Key == "" {
+		return nil, fmt.Errorf("no key provided")
+	}
+
 	req.Header.Add("X-API-AUTH", adt.Key)
 
 	return adt.T.RoundTrip(req)
 }
 
-func (cfg *Config) Client() (*graphql.Client, error) {
+func (cfg *Config) Client(ctx context.Context) (*graphql.Client, error) {
 	url := ""
 	switch cfg.Env {
 	case "production":
@@ -90,7 +94,31 @@ func (cfg *Config) Client() (*graphql.Client, error) {
 	}
 
 	httpclient := &http.Client{Transport: &AddHeaderTransport{T: http.DefaultTransport, Key: cfg.Key}}
-	return graphql.NewClient(url, graphql.WithHTTPClient(httpclient)), nil
+	client := graphql.NewClient(url, graphql.WithHTTPClient(httpclient))
+
+	gql := `
+  query {
+    whoami {
+			id
+    }
+  }`
+	req := graphql.NewRequest(gql)
+
+	var response struct {
+		WhoAmI struct {
+			ID string
+		}
+	}
+
+	if err := client.Run(ctx, req, &response); err != nil {
+		return nil, err
+	}
+
+	if response.WhoAmI.ID == "" {
+		return nil, fmt.Errorf("invalid user")
+	}
+
+	return client, nil
 }
 
 func (cfg *Config) Add(c *cli.Context) error {
@@ -147,7 +175,7 @@ func (cfg *Config) Add(c *cli.Context) error {
 		f.Close()
 	}
 
-	client, err := cfg.Client()
+	client, err := cfg.Client(c.Context)
 	if err != nil {
 		return err
 	}
@@ -179,7 +207,7 @@ mutation SaveLog($content: String!, $project: String!, $code: String!, $lat: Flo
 }
 
 func (cfg *Config) Print(c *cli.Context) error {
-	client, err := cfg.Client()
+	client, err := cfg.Client(c.Context)
 	if err != nil {
 		return err
 	}
