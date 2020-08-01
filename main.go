@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/icco/etu-cli/lib/location"
 	"github.com/machinebox/graphql"
 	"github.com/olekukonko/tablewriter"
 	"github.com/peterh/liner"
@@ -61,8 +62,7 @@ func main() {
 		},
 	}
 
-	err := app.RunContext(context.Background(), os.Args)
-	if err != nil {
+	if err := app.RunContext(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -163,6 +163,11 @@ func (cfg *Config) Add(c *cli.Context) error {
 		return err
 	}
 
+	loc, err := location.CurrentLocation()
+	if err != nil {
+		log.Printf("could not get location: %+v", err)
+	}
+
 	if f, err := os.Create(history_fn); err != nil {
 		log.Print("Error writing history file: ", err)
 	} else {
@@ -176,19 +181,27 @@ func (cfg *Config) Add(c *cli.Context) error {
 	}
 
 	gql := `
-  mutation SaveLog($content: String!, $project: String!, $code: String!) {
-    insertLog(
-      input: { code: $code, description: $content, project: $project }
-    ) {
-      id
-      datetime
-    }
-  }`
+mutation SaveLog($content: String!, $project: String!, $code: String!, $lat: Float!, $long: Float!) {
+	insertLog(input: {
+		code: $code,
+		description: $content,
+		project: $project,
+		location: {
+			lat: $lat,
+			long: $long,
+		}
+	}) {
+		id
+		datetime
+	}
+}`
 
 	req := graphql.NewRequest(gql)
 	req.Var("content", comment)
 	req.Var("code", code)
 	req.Var("project", project)
+	req.Var("lat", loc.Coordinate.Latitude)
+	req.Var("long", loc.Coordinate.Longitude)
 
 	return client.Run(c.Context, req, nil)
 }
@@ -200,14 +213,14 @@ func (cfg *Config) Print(c *cli.Context) error {
 	}
 
 	gql := `
-  query logs {
-    logs {
-      datetime
-			description
-			code
-			project
-    }
-  }`
+query logs {
+	logs {
+		datetime
+		description
+		code
+		project
+	}
+}`
 	req := graphql.NewRequest(gql)
 
 	var response struct {
